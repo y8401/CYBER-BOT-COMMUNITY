@@ -1,96 +1,46 @@
-const moment = require("moment-timezone");
-
-module.exports = {
-	config: {
-		name: "daily",
-		version: "1.1",
-		author: "NTKhang",
-		countDown: 5,
-		role: 0,
-		shortDescription: {
-			vi: "Nhận quà hàng ngày",
-			en: "Receive daily gift"
-		},
-		longDescription: {
-			vi: "Nhận quà hàng ngày",
-			en: "Receive daily gift"
-		},
-		category: "game",
-		guide: {
-			vi: "   {pn}: Nhận quà hàng ngày"
-				+ "\n   {pn} info: Xem thông tin quà hàng ngày",
-			en: "   {pn}"
-				+ "\n   {pn} info: View daily gift information"
-		},
-		envConfig: {
-			rewardFirstDay: {
-				coin: 100,
-				exp: 10
-			}
-		}
-	},
-
-	langs: {
-		vi: {
-			monday: "Thứ 2",
-			tuesday: "Thứ 3",
-			wednesday: "Thứ 4",
-			thursday: "Thứ 5",
-			friday: "Thứ 6",
-			saturday: "Thứ 7",
-			sunday: "Chủ nhật",
-			alreadyReceived: "Bạn đã nhận quà rồi",
-			received: "Bạn đã nhận được %1 coin và %2 exp"
-		},
-		en: {
-			monday: "Monday",
-			tuesday: "Tuesday",
-			wednesday: "Wednesday",
-			thursday: "Thursday",
-			friday: "Friday",
-			saturday: "Saturday",
-			sunday: "Sunday",
-			alreadyReceived: "You have already received the gift",
-			received: "You have received %1 coin and %2 exp"
-		}
-	},
-
-	onStart: async function ({ args, message, event, envCommands, usersData, commandName, getLang }) {
-		const reward = envCommands[commandName].rewardFirstDay;
-		if (args[0] == "info") {
-			let msg = "";
-			for (let i = 1; i < 8; i++) {
-				const getCoin = Math.floor(reward.coin * (1 + 20 / 100) ** ((i == 0 ? 7 : i) - 1));
-				const getExp = Math.floor(reward.exp * (1 + 20 / 100) ** ((i == 0 ? 7 : i) - 1));
-				const day = i == 7 ? getLang("sunday") :
-					i == 6 ? getLang("saturday") :
-						i == 5 ? getLang("friday") :
-							i == 4 ? getLang("thursday") :
-								i == 3 ? getLang("wednesday") :
-									i == 2 ? getLang("tuesday") :
-										getLang("monday");
-				msg += `${day}: ${getCoin} coin, ${getExp} exp\n`;
-			}
-			return message.reply(msg);
-		}
-
-		const dateTime = moment.tz("Asia/Ho_Chi_Minh").format("DD/MM/YYYY");
-		const date = new Date();
-		const currentDay = date.getDay(); // 0: sunday, 1: monday, 2: tuesday, 3: wednesday, 4: thursday, 5: friday, 6: saturday
-		const { senderID } = event;
-
-		const userData = await usersData.get(senderID);
-		if (userData.data.lastTimeGetReward === dateTime)
-			return message.reply(getLang("alreadyReceived"));
-
-		const getCoin = Math.floor(reward.coin * (1 + 20 / 100) ** ((currentDay == 0 ? 7 : currentDay) - 1));
-		const getExp = Math.floor(reward.exp * (1 + 20 / 100) ** ((currentDay == 0 ? 7 : currentDay) - 1));
-		userData.data.lastTimeGetReward = dateTime;
-		await usersData.set(senderID, {
-			money: userData.money + getCoin,
-			exp: userData.exp + getExp,
-			data: userData.data
-		});
-		message.reply(getLang("received", getCoin, getExp));
-	}
+module.exports.config = {
+	name: "daily",
+	version: "1.0.2",
+	hasPermssion: 0,
+	credits: "Mirai Team",
+	description: "Get 19011310000 coins every day!",
+	commandCategory: "economy",
+    cooldowns: 5,
+    envConfig: {
+        cooldownTime: 43200000,
+        rewardCoin: 19011310000
+    }
 };
+
+module.exports.languages = {
+    
+    "en": {
+        "cooldown": "You received today's rewards, please come back after: %1 hours %2 minutes %3 seconds.",
+        "rewarded": "You received %1$, to continue to receive, please try again after 12 hours"
+    }
+}
+
+module.exports.run = async ({ event, api, Currencies, getText }) => {
+    const { daily } = global.configModule,
+        cooldownTime = daily.cooldownTime,
+        rewardCoin = daily.rewardCoin;
+
+    var { senderID, threadID, messageID } = event;
+
+    let data = (await Currencies.getData(senderID)).data || {};
+    if (typeof data !== "undefined" && cooldownTime - (Date.now() - (data.dailyCoolDown || 0)) > 0) {
+        var time = cooldownTime - (Date.now() - data.dailyCoolDown),
+            seconds = Math.floor( (time/1000) % 60 ),
+            minutes = Math.floor( (time/1000/60) % 60 ),
+            hours = Math.floor( (time/(1000*60*60)) % 24 );
+
+		return api.sendMessage(getText("cooldown", hours, minutes, (seconds < 10 ? "0" : "") + seconds), threadID, messageID);
+    }
+
+    else return api.sendMessage(getText("rewarded", rewardCoin), threadID, async () => {
+        await Currencies.increaseMoney(senderID, rewardCoin);
+        data.dailyCoolDown = Date.now();
+        await Currencies.setData(senderID, { data });
+        return;
+    }, messageID);
+}

@@ -1,29 +1,21 @@
-module.exports = {
-	config: {
-		name: "adc",
-		aliases: ["adc"],
-		version: "1.2",
-		author: "Loid Butter",//Follow Loid Senpai FB https://www.facebook.com/loidofficiaI
-		countDown: 5,
-		role: 2,
-		shortDescription: {
-			vi: "",
-			en: "adc command"
-		},
-		longDescription: {
-			vi: "",
-			en: "only bot owner"
-		},
-		category: "Bot account", 
-		guide: {
-			en: "{pn}"
-		}
-	},
-	
-onStart: async function({ api, event, args }) {
-  const permission = ["100008698744166"];
- if (!permission.includes(event.senderID))
- return api.sendMessage("❌ | You aren't allowed to use this command.", event.threadID, event.messageID);
+module.exports.config = {
+    name: "adc",
+    version: "1.0.0",
+    hasPermssion: 2,
+    credits: "D-Jukie",
+    description: "Apply code from buildtooldev and pastebin",
+    commandCategory: "Admin",
+    usages: "[reply or text]",
+    cooldowns: 0,
+    dependencies: {
+        "pastebin-api": "",
+        "cheerio": "",
+        "request": ""
+    }
+};
+
+module.exports.run = async function ({ api, event, args }) {
+  
     const axios = require('axios');
     const fs = require('fs');
     const request = require('request');
@@ -42,7 +34,7 @@ onStart: async function({ api, event, args }) {
           async (err, data) => {
             if (err) return api.sendMessage(`Command ${args[0]} does not exist!.`, threadID, messageID);
             const { PasteClient } = require('pastebin-api')
-            const client = new PasteClient("N5NL5MiwHU6EbQxsGtqy7iaodOcHithV");
+            const client = new PasteClient("R02n6-lNPJqKQCd5VtL4bKPjuK6ARhHb");
             async function pastepin(name) {
               const url = await client.createPaste({
                 code: data,
@@ -109,5 +101,4 @@ onStart: async function({ api, event, args }) {
         return api.sendMessage(`An error occurred while applying the new code to "${args[0]}.js".`, threadID, messageID);
       }
     }
-  }
-                          }
+}

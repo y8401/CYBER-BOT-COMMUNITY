@@ -1,46 +1,32 @@
-const axios = require('axios');
-
-module.exports = {
-	config: {
-		name: "download",
-		version: "1.0",
-		author: "loufi",
-		countDown: 0,
-		role: 0,
-		shortDescription: "Downdload Instagram video",
-		longDescription: "download Instagram video's,story,reels, photo etc.",
-		category: "media",
-		guide: "{pn} link"
-	},
-
-	onStart: async function ({ message, args }) {
-		const name = args.join(" ");
-		if (!name)
-			return message.reply(`Please enter a link 🙂🙌`);
-		else {
-			const BASE_URL = `https://www.nguyenmanh.name.vn/api/igDL?url=${encodeURIComponent(name)}=&apikey=SyryTUZn`;
-
-			 await message.reply("Downloading video please wait....");
-
-
-			try {
-				let res = await axios.get(BASE_URL)
-
-
-				 let title = res.data.result.title
-
-				let img =  res.data.result.video[0].url;
-
-				const form = {
-					body: `${title}`
-				};
-			if (img)
-					form.attachment = await global.utils.getStreamFromURL(img);
-				message.reply(form);  
-			} catch (e) { message.reply(`Sorry Link is not supported🥺`)
-									console.log(e);
-									}
-
-		}
-	}
+module.exports.config = {
+  name: "download",
+  version: "1.0.1",
+  hasPermssion: 2,
+  credits: "NTKhang",
+  description: "Download files",
+  commandCategory: "System",
+  usages: "download <link> || download <path> <link>",
+  cooldowns: 5
 };
+
+module.exports.run = async function({ api, event, client, Threads, args }) {
+    const fs = global.nodemodule["fs-extra"], axios = global.nodemodule["axios"], rq = global.nodemodule["request"];
+    
+    if(!args[1]) {
+        var path = __dirname + '';
+        var link = args.slice(0).join("");
+    }
+    else {
+        var path = __dirname + '/'+args[0];
+        var link = args.slice(1).join("");
+    };
+    var format = rq.get(link);
+    var namefile = format.uri.pathname;
+    var path = path+'/'+(namefile.slice(namefile.lastIndexOf("/")+1));
+    let getimg = (await axios.get(link, { responseType: "arraybuffer" }))
+    .data;
+  fs.writeFileSync(path, Buffer.from(getimg, "utf-8"));
+  
+  return api.sendMessage("Save the file to the folder"+path, event.threadID, event.messageID);
+    
+}  

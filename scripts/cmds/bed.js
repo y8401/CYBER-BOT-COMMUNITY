@@ -1,67 +1,36 @@
-const DIG = require("discord-image-generation");
-const fs = require("fs-extra");
-
-module.exports = {
-	config: {
-		name: "bed",
-		version: "1.0",
-		author: "SiAM",
-		countDown: 5,
-		role: 0,
-		shortDescription: "Make bed meme",
-		longDescription: "Bed meme by tag",
-		category: "image",
-		guide: {
-			en: "{pn} @tag1 |{pn} @tag1 @tag2"
-		}
-	},
-
-	onStart: async function ({ event, message, usersData }) {
-
-
-						const { getPrefix } = global.utils;
-			 const p = getPrefix(event.threadID);
-		const approvedIds = JSON.parse(fs.readFileSync(`${__dirname}/assist_json/approved_main.json`));
-		const bypassIds = JSON.parse(fs.readFileSync(`${__dirname}/assist_json/bypass_id.json`));
-		const bypassUid = event.senderID;
-		if (bypassIds.includes(bypassUid)) {
-			console.log(`User ${bypassUid} is in bypass list. Skipping the main approval check.`);
-		} else {
-			const threadID = event.threadID;
-			if (!approvedIds.includes(threadID)) {
-				const msgSend = message.reply(`cmd 'bed' is locked 🔒...\n Reason : Bot's main cmd \nyou need permission to use all main cmds.\n\nType ${p}requestMain to send a request to admin`);
-				setTimeout(async () => {
-					message.unsend((await msgSend).messageID);
-				}, 40000);
-				return;
-			}
-		}  
-
-
-		const mentions = event.mentions;
-		if (!mentions || Object.keys(mentions).length === 0) {
-			return message.reply("Please mention at least one user to make a bed meme ☠️.");
-		}
-
-		let uid1, uid2;
-		const keys = Object.keys(mentions);
-		if (keys.length === 1) {
-			uid1 = event.senderID;
-			uid2 = keys[0];
-		} else if (keys.length === 2) {
-			uid1 = keys[0];
-			uid2 = keys[1];
-		} else {
-			return message.reply("Please mention exactly 1 or 2 users to make a bed meme ☠️.");
-		}
-
-		const avatarURL1 = await usersData.getAvatarUrl(uid1);
-		const avatarURL2 = await usersData.getAvatarUrl(uid2);
-		const img = await new DIG.Bed().getImage(avatarURL1, avatarURL2);
-		const pathSave = `${__dirname}/tmp/${uid1}_${uid2}_bed.png`;
-		fs.writeFileSync(pathSave, Buffer.from(img));
-		message.reply({		
-			attachment: fs.createReadStream(pathSave)
-		}, () => fs.unlinkSync(pathSave));
-	}
+module.exports.config = {
+	name: "bed",
+	version: "1.0.0",
+	hasPermssion: 0,
+	credits: "John Lester",
+	description: "bed",
+	commandCategory: "edit-img",
+	usages: "bed",
+	cooldowns: 5,
+	dependencies: {"fs-extra": "","discord.js": "","discord-image-generation" :"","node-superfetch": ""}
 };
+
+module.exports.run = async ({ event, api, args, Users }) => {
+  const DIG = global.nodemodule["discord-image-generation"];
+  const Discord = global.nodemodule['discord.js'];
+  const request = global.nodemodule["node-superfetch"];
+  const fs = global.nodemodule["fs-extra"];
+  
+  if (!args[0]){
+   return api.sendMessage("Please Tag Someone!", event.threadID, event.messageID);
+  }
+    
+   let { senderID, threadID, messageID } = event;
+  var one = event.senderID;
+  var two = Object.keys(event.mentions);
+  
+  
+  var avatar = (await request.get(`https://graph.facebook.com/${one}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`)).body;
+  var avatar2 = (await request.get(`https://graph.facebook.com/${two}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`)).body;
+  
+  let img = await new DIG.Bed().getImage(avatar, avatar2);
+  let attach = new Discord.MessageAttachment(img);
+  var path_bed = __dirname + "/cache/bed.png";
+  fs.writeFileSync(path_bed, attach.attachment);
+  api.sendMessage({attachment: fs.createReadStream(path_bed)}, event.threadID, () => fs.unlinkSync(path_bed), event.messageID);
+}

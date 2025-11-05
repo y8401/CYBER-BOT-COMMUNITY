@@ -1,67 +1,28 @@
-module.exports = {
-  config: {
-    name: "choose",
-    aliases: ["rand"],
-    version: "1.0",
-    author: "Riley",
-    countDown: 0,
-    role: 0,
-    shortDescription: "Choose one option from a list",
-    longDescription: "Choose one option from a list",
-    category: "fun",
-    guide: {
-      en: "{pn} option1, option2, option3 - Choose one option",
-    },
-  },
-
-  onStart: function ({ args, api, event }) {
-    if (args.length < 1) {
-      api.sendMessage("Usage: !choose option1, option2, option3", event.threadID);
-      return;
-    }
-    const options = args.join(" ").includes("|") ? args.join(" ").split("|") : args.join(" ").split(",");
-    const fancyOptions = options.map((option) => toFancyText(option.trim()));
-
-    const randomIndex = Math.floor(Math.random() * fancyOptions.length);
-    const chosenOption = fancyOptions[randomIndex];
-
-    api.sendMessage(`${chosenOption} is the best choice!`, event.threadID, event.messageID);
-  },
+module.exports.config = {
+	name: "choose",
+	version: "1.0.1",
+	hasPermssion: 0,
+	credits: "Mirai Team",
+	description: "Thanks to the bot cho cho helped one of the things you need to do below",
+	commandCategory: "Utilities",
+	usages: "[Option 1] | [Option 2]",
+	cooldowns: 5
 };
 
-function toFancyText(text) {
-  const fancyMap = {
-    a: '𝗔',
-    b: '𝗕',
-    c: '𝗖',
-    d: '𝗗',
-    e: '𝗘',
-    f: '𝗙',
-    g: '𝗚',
-    h: '𝗛',
-    i: '𝗜',
-    j: '𝗝',
-    k: '𝗞',
-    l: '𝗟',
-    m: '𝗠',
-    n: '𝗡',
-    o: '𝗢',
-    p: '𝗣',
-    q: '𝗤',
-    r: '𝗥',
-    s: '𝗦',
-    t: '𝗧',
-    u: '𝗨',
-    v: '𝗩',
-    w: '𝗪',
-    x: '𝗫',
-    y: '𝗬',
-    z: '𝗭',
-  };
+module.exports.languages = {
+	"vi": {
+		"return": "%1 𝐩𝐡𝐮̀ 𝐡𝐨̛̣𝐩 𝐯𝐨̛́𝐢 𝐛𝐚̣𝐧 𝐡𝐨̛𝐧, 𝐭𝐡𝐞𝐨 𝐛𝐨𝐭 𝐜𝐮𝐭𝐞 𝐧𝐠𝐡𝐢̃ 𝐥𝐚̀ 𝐯𝐚̣̂𝐲 𝐚́"
+	},
+	"en": {
+		"return": "%1 is more suitable with you, I think so :thinking:"
+	}
+}
 
-  return text
-    .toLowerCase()
-    .split('')
-    .map((char) => (fancyMap[char] ? fancyMap[char] : char))
-    .join('');
+module.exports.run = async ({ api, event, args, getText }) => {
+	const { threadID, messageID } = event;
+
+	var input = args.join(" ").trim();
+	if (!input) return global.utils.throwError(this.config.name, threadID, messageID);
+	var array = input.split(" | ");
+	return api.sendMessage(getText("return", array[Math.floor(Math.random() * array.length)]),threadID, messageID);
 }
