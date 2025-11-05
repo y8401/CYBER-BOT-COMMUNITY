@@ -1,89 +1,175 @@
-module.exports.config = {
-	name: "help",
-	version: "1.0.2",
-	hasPermssion: 0,
-	credits: "EMon-BHai",
-	description: "Beginner's Guide To All Bot Commands",
-	commandCategory: "System",
-	usages: "[ listbox ]",
-	cooldowns: 7,
-	envConfig: {
-		autoUnsend: true,
-		delayUnsend: 500
-	}
-};
+const { getPrefix } = global.utils;
+const { commands, aliases } = global.GoatBot;
+const https = require("https");
+const fs = require("fs");
+const path = require("path");
 
-module.exports.languages = {
-	//"vi": {
-	//	"moduleInfo": "「 %1 」\n%2\n\n❯ Cách sử dụng: %3\n❯ Thuộc nhóm: %4\n❯ Thời gian chờ: %5 giây(s)\n❯ Quyền hạn: %6\n\n» Module code by %7 «",
-	//	"helpList": '[ Hiện tại đang có %1 lệnh có thể sử dụng trên bot này, Sử dụng: "%2help nameCommand" để xem chi tiết cách sử dụng! ]"',
-	//	"user": "Người dùng",
-  //      "adminGroup": "Quản trị viên nhóm",
-  //      "adminBot": "Quản trị viên bot"
-//	},
-	"en": {
-		"moduleInfo": "「 %1 」\n%2\n\n❯ Usage: %3\n❯ Category: %4\n❯ Waiting time: %5 seconds(s)\n❯ Permission: %6\n\n» Module code by %7 «",
-		"helpList": '[ There are %1 commands on this bot, Use: "%2help nameCommand" to know how to use! ]',
-		"user": "User",
-        "adminGroup": "Admin group",
-        "adminBot": "Admin bot"
-	}
-};
+const GIF_URL = "https://i.imgur.com/RW1P8A3.gif";
+const GIF_PATH = path.join(__dirname, "help.gif");
 
-module.exports.handleEvent = function ({ api, event, getText }) {
-	const { commands } = global.client;
-	const { threadID, messageID, body } = event;
+// Simple fuzzy search for suggestion
+function getClosestCommand(name) {
+  const lowerName = name.toLowerCase();
+  let closest = null;
+  let minDist = Infinity;
 
-	if (!body || typeof body == "undefined" || body.indexOf("help") != 0) return;
-	const splitBody = body.slice(body.indexOf("help")).trim().split(/\s+/);
-	if (splitBody.length == 1 || !commands.has(splitBody[1].toLowerCase())) return;
-	const threadSetting = global.data.threadData.get(parseInt(threadID)) || {};
-	const command = commands.get(splitBody[1].toLowerCase());
-	const prefix = (threadSetting.hasOwnProperty("PREFIX")) ? threadSetting.PREFIX : global.config.PREFIX;
-	return api.sendMessage(getText("moduleInfo", command.config.name, command.config.description, `${prefix}${command.config.name} ${(command.config.usages) ? command.config.usages : ""}`, command.config.commandCategory, command.config.cooldowns, ((command.config.hasPermssion == 0) ? getText("user") : (command.config.hasPermssion == 1) ? getText("adminGroup") : getText("adminBot")), command.config.credits), threadID, messageID);
+  for (const cmdName of commands.keys()) {
+    const dist = levenshteinDistance(lowerName, cmdName.toLowerCase());
+    if (dist < minDist) {
+      minDist = dist;
+      closest = cmdName;
+    }
+  }
+  if (minDist <= 3) return closest;
+  return null;
 }
 
-module.exports. run = function({ api, event, args, getText }) {
-	const { commands } = global.client;
-	const { threadID, messageID } = event;
-	const command = commands.get((args[0] || "").toLowerCase());
-	const threadSetting = global.data.threadData.get(parseInt(threadID)) || {};
-	const { autoUnsend, delayUnsend } = global.configModule[this.config.name];
-	const prefix = (threadSetting.hasOwnProperty("PREFIX")) ? threadSetting.PREFIX : global.config.PREFIX;
+// Levenshtein distance function (edit distance)
+function levenshteinDistance(a, b) {
+  const matrix = Array(b.length + 1)
+    .fill(null)
+    .map(() => Array(a.length + 1).fill(null));
 
-	if (!command) {
-		const arrayInfo = [];
-		const page = parseInt(args[0]) || 1;
-    const numberOfOnePage = 9999;
-    //*số thứ tự 1 2 3.....cú pháp ${++i}*//
-    let i = 0;
-    let msg = "";
-    
-    for (var [name, value] of (commands)) {
-      name += `📛`;
-      arrayInfo.push(name);
+  for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+
+  for (let j = 1; j <= b.length; j++) {
+    for (let i = 1; i <= a.length; i++) {
+      const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1,
+        matrix[j - 1][i] + 1,
+        matrix[j - 1][i - 1] + indicator
+      );
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+module.exports = {
+  config: {
+    name: "help",
+    version: "1.25",
+    author: "Ew'r Saim",//modified by NeoKEX
+    countDown: 5,
+    role: 0,
+    shortDescription: { en: "View command usage and list all commands directly" },
+    longDescription: { en: "View command usage and list all commands directly" },
+    category: "info",
+    guide: { en: "{pn} / help [category] or help commandName" },
+    priority: 1,
+  },
+
+  onStart: async function ({ message, args, event, role }) {
+    const { threadID } = event;
+    const prefix = getPrefix(threadID);
+    const categories = {};
+
+    for (const [name, value] of commands) {
+      if (!value?.config || typeof value.onStart !== "function") continue;
+      if (value.config.role > 1 && role < value.config.role) continue;
+
+      const category = value.config.category?.toLowerCase() || "uncategorized";
+      if (!categories[category]) categories[category] = [];
+      categories[category].push(name);
     }
 
-    arrayInfo.sort((a, b) => a.data - b.data);
-    
-    const startSlice = numberOfOnePage*page - numberOfOnePage;
-    i = startSlice;
-    const returnArray = arrayInfo.slice(startSlice, startSlice + numberOfOnePage);
-    
-    for (let item of returnArray) msg += `『 ${++i} 』${prefix}${item}\n`;
-    
-    
-    const siu = `╔━━❖❖💠❖❖━━╗\n  𝐀𝐥𝐥 𝐂𝐨𝐦𝐦𝐚𝐧𝐝 𝐋𝐢𝐬𝐭\n\n      𝐂𝐘𝐁𝐄𝐑-𝐂𝐀𝐓\n╚━━❖❖💠❖❖━━╝`;
-    
- const text = `\nPage (${page}/${Math.ceil(arrayInfo.length/numberOfOnePage)})`;
- 
-    return api.sendMessage(siu + "\n\n" + msg  + text, threadID, async (error, info) => {
-			if (autoUnsend) {
-				await new Promise(resolve => setTimeout(resolve, delayUnsend * 1000));
-				return api.unsendMessage(info.messageID);
-			} else return;
-		}, event.messageID);
-	}
+    const rawInput = args.join(" ").trim();
 
-	return api.sendMessage(getText("moduleInfo", command.config.name, command.config.description, `${prefix}${command.config.name} ${(command.config.usages) ? command.config.usages : ""}`, command.config.commandCategory, command.config.cooldowns, ((command.config.hasPermssion == 0) ? getText("user") : (command.config.hasPermssion == 1) ? getText("adminGroup") : getText("adminBot")), command.config.credits), threadID, messageID);
+    let msg = "";
+
+    if (!rawInput) {
+      msg += "╔═══════════════╗\n";
+      msg += " GOGETA HELP MENU\n";
+      msg += "╚═══════════════╝\n";
+
+      for (const category of Object.keys(categories).sort()) {
+        const cmdList = categories[category];
+        msg += `┍━━━[ ${category.toUpperCase()} ]\n`;
+
+        const sortedNames = cmdList.sort((a, b) => a.localeCompare(b));
+        for (const cmdName of sortedNames) {
+          msg += `┋〄 ${cmdName}\n`;
+        }
+
+        msg += "┕━━━━━━━━━━━━◊\n";
+      }
+
+      msg += "┍━━━[ INFO ]━━━◊\n";
+      msg += `┋➥ TOTAL CMD: [${commands.size}]\n`;
+      msg += `┋➥ PREFIX: ${prefix}\n`;
+      msg += `┋ OWNER: Ibne Saad 🐔\n`;
+      msg += "┕━━━━━━━━━━━◊";
+
+    } else {
+      const commandName = rawInput.toLowerCase();
+      const command = commands.get(commandName) || commands.get(aliases.get(commandName));
+
+      if (!command || !command?.config) {
+        const suggestion = getClosestCommand(commandName);
+        if (suggestion) {
+          return message.reply(`❌ Command "${commandName}" not found.\n👉 Did you mean: "${suggestion}"?`);
+        } else {
+          return message.reply(`❌ Command "${commandName}" not found.\nTry: /help or /help [category]`);
+        }
+      }
+
+      const configCommand = command.config;
+      const roleText = roleTextToString(configCommand.role);
+      const author = configCommand.author || "Unknown";
+      const longDescription = configCommand.longDescription?.en || "No description available.";
+      const guideBody = configCommand.guide?.en || "No guide available.";
+      const usage = guideBody.replace(/{pn}/g, `${prefix}${configCommand.name}`);
+
+      msg += ` ╔══ [ COMMAND INFO ] ══╗
+┋🧩 Name       : ${configCommand.name}
+┋🗂️ Category   : ${configCommand.category || "Uncategorized"}
+┋📜 Description: ${longDescription}
+┋🔁 Aliases    : None
+┋⚙️ Version    : ${configCommand.version || "1.0"}
+┋🔐 Permission : ${configCommand.role} (${roleText})
+┋⏱️ Cooldown   : ${configCommand.countDown || 5}s
+┋👑 Author     : ${author}
+┋📖 Usage      : ${usage}
+╚════════════════════╝`;
+    }
+
+    // Ensure GIF is downloaded once
+    if (!fs.existsSync(GIF_PATH)) {
+      await downloadGif(GIF_URL, GIF_PATH);
+    }
+
+    return message.reply({
+      body: msg,
+      attachment: fs.createReadStream(GIF_PATH)
+    });
+  }
 };
+
+// Helper to convert role number to text
+function roleTextToString(role) {
+  switch (role) {
+    case 0: return "All users";
+    case 1: return "Group Admins";
+    case 2: return "Bot Admins";
+    default: return "Unknown";
+  }
+}
+
+// Download gif if not exists
+function downloadGif(url, dest) {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(dest);
+    https.get(url, (res) => {
+      if (res.statusCode !== 200) {
+        fs.unlink(dest, () => {});
+        return reject(new Error(`Failed to get '${url}' (${res.statusCode})`));
+      }
+      res.pipe(file);
+      file.on("finish", () => file.close(resolve));
+    }).on("error", (err) => {
+      fs.unlink(dest, () => {});
+      reject(err);
+    });
+  });
+}
